@@ -1,10 +1,11 @@
-// src/pages/Login.tsx
-import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import 'nprogress/nprogress.css';
+import NProgress from 'nprogress';
+import toast from 'react-hot-toast';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSignInMutation } from '@/features/auth/authApi';
-import { useNavigate } from 'react-router';
-import toast from 'react-hot-toast';
 
 // Zod schema for validation
 const formSchema = z.object({
@@ -33,8 +34,10 @@ export default function Login() {
 
     const onSubmit = async (values: LoginFormValues) => {
         try {
+            NProgress.start();
+
             const res = await signin(values).unwrap();
-            // Check if status is "success"
+
             if (res.status === 'success') {
                 localStorage.setItem('token', res.token);
                 localStorage.setItem('user_id', res.user_id);
@@ -43,13 +46,13 @@ export default function Login() {
                 toast.success(res.message || 'Login successful!');
                 navigate('/dashboard');
             } else {
-                // Handle unexpected status
                 toast.error(res.message || 'Unexpected response status');
             }
         } catch (err) {
-            const errorMsg = 'Login failed.';
-            toast.error(errorMsg);
+            toast.error('Login failed.');
             console.error('Login failed:', err);
+        } finally {
+            NProgress.done(); // ✅ Stop progress bar
         }
     };
 
@@ -106,17 +109,18 @@ export default function Login() {
                     {/* Button */}
                     <button
                         type="submit"
-                        className="w-full mt-6 p-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200 disabled:bg-indigo-300"
+                        className="w-full mt-6 p-3 bg-indigo-600 text-white rounded-lg cursor-pointer hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200 disabled:bg-indigo-300"
                         disabled={isLoading}
                     >
                         {isLoading ? 'Logging in...' : 'Log In'}
                     </button>
                 </form>
+
                 <div className="mt-4 text-center text-sm text-gray-600">
                     Don't have an account?{' '}
-                    <a href="/signup" className="text-indigo-600 hover:underline">
+                    <Link to="/sign-up" className="text-indigo-600 hover:underline">
                         Sign Up
-                    </a>
+                    </Link>
                 </div>
             </div>
         </div>

@@ -118,3 +118,13 @@
         @apply bg-background text-foreground;
     }
 }
+/* Custom NProgress color */
+#nprogress .bar {
+    background: #10b981 !important;
+}
+
+/* Optional: Change the spinner color if used */
+#nprogress .spinner-icon {
+    border-top-color: #10b981 !important;
+    border-left-color: #10b981 !important;
+}

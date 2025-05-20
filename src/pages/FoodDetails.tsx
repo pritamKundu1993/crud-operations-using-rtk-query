@@ -10,12 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'react-hot-toast';
+import NProgress from 'nprogress';
+import 'nprogress/nprogress.css';
 
 interface RouteState {
     food?: Food;
 }
 
-// Zod schema for validation (based on AddFood.tsx, without food_image input)
 const formSchema = z.object({
     food_name: z.string().min(1, 'Food name is required'),
     food_desc: z.string().min(10, 'Description must be at least 10 characters'),
@@ -25,7 +26,6 @@ const formSchema = z.object({
         .finite('Price must be a valid number'),
 });
 
-// Form data type for form inputs
 interface FormData {
     food_name: string;
     food_desc: string;
@@ -33,19 +33,17 @@ interface FormData {
 }
 
 export default function FoodDetails() {
-    const { id } = useParams(); // Get :id from /dashboard/food/:id
+    const { id } = useParams();
     const { state } = useLocation() as { state: RouteState | null };
     const navigate = useNavigate();
     const { data: fetchedFood, isLoading } = useGetFoodByIdQuery(id, {
-        skip: !!state?.food || !id, // Skip fetch if state.food exists or id is invalid
+        skip: !!state?.food || !id,
     });
     const [updateFood, { isLoading: isUpdating }] = useUpdateFoodMutation();
     const [imageFile, setImageFile] = useState<File | null>(null);
 
-    // Use state.food if available, else fallback to fetchedFood
     const initialFood = state?.food || fetchedFood;
 
-    // Initialize React Hook Form
     const form = useForm<FormData>({
         resolver: zodResolver(formSchema),
         mode: 'onChange',
@@ -56,7 +54,6 @@ export default function FoodDetails() {
         },
     });
 
-    // Prepopulate form with initialFood
     useEffect(() => {
         if (initialFood) {
             form.reset({
@@ -65,17 +62,24 @@ export default function FoodDetails() {
                 food_price: initialFood.food_price,
             });
         }
+        return () => {
+            // No async side effects to clean up here
+        };
     }, [initialFood, form.reset]);
 
-    // Fetch and convert image to File object
     useEffect(() => {
+        let isMounted = true;
+        const controller = new AbortController();
+
         if (initialFood?.food_image) {
             const fetchImage = async () => {
                 try {
-                    const response = await fetch(initialFood.food_image);
+                    const response = await fetch(initialFood.food_image, {
+                        signal: controller.signal,
+                    });
                     if (!response.ok) throw new Error('Failed to fetch image');
                     const blob = await response.blob();
-                    // Create File object with inferred extension
+
                     const extension =
                         initialFood.food_image.split('.').pop()?.toLowerCase() || 'jpg';
                     const mimeType =
@@ -85,17 +89,37 @@ export default function FoodDetails() {
                             ? 'image/jpeg'
                             : 'image/jpeg';
                     const file = new File([blob], `food_image.${extension}`, { type: mimeType });
-                    setImageFile(file);
+
+                    if (isMounted) setImageFile(file);
                 } catch (error) {
-                    console.error('Image Fetch Error:', error);
-                    toast.error(
-                        'Failed to load existing image. Please try again or contact support.'
-                    );
+                    if (error.name !== 'AbortError') {
+                        console.error('Image Fetch Error:', error);
+                        toast.error(
+                            'Failed to load existing image. Please try again or contact support.'
+                        );
+                    }
                 }
             };
             fetchImage();
         }
+
+        return () => {
+            isMounted = false;
+            controller.abort();
+        };
     }, [initialFood?.food_image]);
+
+    useEffect(() => {
+        if (isLoading || isUpdating) {
+            NProgress.start();
+        } else {
+            NProgress.done();
+        }
+
+        return () => {
+            NProgress.done(); // Ensure it always stops
+        };
+    }, [isLoading, isUpdating]);
 
     const onSubmit: SubmitHandler<FormData> = async (values) => {
         if (!id) {
@@ -116,22 +140,12 @@ export default function FoodDetails() {
             return;
         }
 
-        console.log('Form Values:', values);
-        console.log('Form State:', form.getValues());
-
         const formData = new FormData();
         formData.append('food_name', values.food_name);
         formData.append('food_desc', values.food_desc);
         formData.append('food_price', values.food_price.toString());
-        // Send existing food_image as binary
         if (imageFile) {
             formData.append('food_image', imageFile);
-        }
-
-        // Debug FormData contents
-        console.log('FormData Contents:');
-        for (const [key, value] of formData.entries()) {
-            console.log(`${key}: ${value}`);
         }
 
         try {
@@ -184,8 +198,7 @@ export default function FoodDetails() {
             ) : (
                 <p className="text-sm text-gray-500">No image available</p>
             )}
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                {/* Food Name */}
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-6">
                 <div>
                     <Label htmlFor="food_name">Food Name</Label>
                     <Input
@@ -200,7 +213,6 @@ export default function FoodDetails() {
                     )}
                 </div>
 
-                {/* Food Description */}
                 <div>
                     <Label htmlFor="food_desc">Description</Label>
                     <Textarea
@@ -216,7 +228,6 @@ export default function FoodDetails() {
                     )}
                 </div>
 
-                {/* Food Price */}
                 <div>
                     <Label htmlFor="food_price">Price (₹)</Label>
                     <Input
@@ -233,13 +244,38 @@ export default function FoodDetails() {
                     )}
                 </div>
 
-                {/* Buttons */}
                 <div className="flex gap-2">
                     <Button
                         type="submit"
                         disabled={isUpdating || !form.formState.isValid || !imageFile}
                     >
-                        {isUpdating ? 'Updating...' : 'Submit'}
+                        {isUpdating ? (
+                            <div className="flex items-center gap-2">
+                                <svg
+                                    className="animate-spin h-4 w-4 text-white"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                    />
+                                    <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8v8H4z"
+                                    />
+                                </svg>
+                                Updating...
+                            </div>
+                        ) : (
+                            'Submit'
+                        )}
                     </Button>
                     <Button type="button" variant="outline" onClick={() => navigate('/dashboard')}>
                         Cancel

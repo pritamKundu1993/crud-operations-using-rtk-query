@@ -1,41 +1,45 @@
 // src/routes/router.tsx
-import { createBrowserRouter } from 'react-router';
-import AuthLayout from '@/Layout/AuthLayout';
-import DashboardLayout from '@/Layout/DashboardLayout';
-import AddFood from '@/pages/AddFood';
-import FoodDetails from '@/pages/FoodDetails';
-import Home from '@/pages/Home';
-import Login from '@/pages/Login';
-import Signup from '@/pages/Signup';
-import ErrorPage from '@/pages/ErrorPage';
-import ProtectedRoute from '@/routes/ProtectedRoute';
+import { createBrowserRouter, Navigate } from 'react-router';
+import { lazy } from 'react';
 import AuthRoute from '@/routes/AuthRoute';
+import ProtectedRoute from '@/routes/ProtectedRoute';
+import ErrorPage from '@/pages/ErrorPage';
+import { withSuspense } from '@/utils/WithSuspance';
+import { AuthLayout, DashboardLayout } from '@/Layout';
+// Lazy loaded pages
+
+const Login = lazy(() => import('@/pages/Login'));
+const Signup = lazy(() => import('@/pages/Signup'));
+const Home = lazy(() => import('@/pages/Home'));
+const FoodDetails = lazy(() => import('@/pages/FoodDetails'));
+const AddFood = lazy(() => import('@/pages/AddFood'));
 
 export const router = createBrowserRouter([
     {
-        element: <AuthRoute />, // 👈 if logged in, redirect to dashboard
+        element: <AuthRoute />,
         children: [
             {
                 path: '/',
                 element: <AuthLayout />,
                 children: [
-                    { index: true, element: <Login /> },
-                    { path: 'signup', element: <Signup /> },
+                    { index: true, element: <Navigate to="/log-in" /> },
+                    { path: 'log-in', element: withSuspense(Login) },
+                    { path: 'sign-up', element: withSuspense(Signup) },
                 ],
                 errorElement: <ErrorPage />,
             },
         ],
     },
     {
-        element: <ProtectedRoute />, // 👈 only if logged in
+        element: <ProtectedRoute />,
         children: [
             {
                 path: '/dashboard',
                 element: <DashboardLayout />,
                 children: [
-                    { index: true, element: <Home /> },
-                    { path: 'food/:id', element: <FoodDetails /> },
-                    { path: 'add-food', element: <AddFood /> },
+                    { index: true, element: withSuspense(Home) },
+                    { path: 'food/:id', element: withSuspense(FoodDetails) },
+                    { path: 'add-food', element: withSuspense(AddFood) },
                 ],
                 errorElement: <ErrorPage />,
             },

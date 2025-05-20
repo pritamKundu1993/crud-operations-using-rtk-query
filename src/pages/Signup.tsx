@@ -1,11 +1,12 @@
-import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import NProgress from 'nprogress';
+import 'nprogress/nprogress.css';
+import toast from 'react-hot-toast';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useSignUpMutation } from '@/features/auth/authApi';
-import { useNavigate } from 'react-router';
-import toast from 'react-hot-toast';
 
-// Zod schema for validation
 const formSchema = z
     .object({
         name: z.string().min(1, 'Name is required'),
@@ -28,7 +29,7 @@ type SignupFormValues = z.infer<typeof formSchema>;
 export default function Signup() {
     const form = useForm<SignupFormValues>({
         resolver: zodResolver(formSchema),
-        mode: 'onChange', // validate on every keystroke
+        mode: 'onChange',
         defaultValues: {
             name: '',
             email: '',
@@ -42,14 +43,17 @@ export default function Signup() {
     const navigate = useNavigate();
 
     const onSubmit = async (values: SignupFormValues) => {
+        NProgress.start();
         try {
             const { pass2, ...rest } = values;
             const res = await signup(rest).unwrap();
-            console.log('Signup Success:', res);
-            toast.success(res.mesaage || 'Login successful!');
+            toast.success(res.mesaage || 'Signup successful!');
             navigate('/');
         } catch (err) {
             console.error('Signup failed:', err);
+            toast.error('Signup failed');
+        } finally {
+            NProgress.done();
         }
     };
 
@@ -98,9 +102,9 @@ export default function Signup() {
             </form>
             <p className="mt-4 text-center text-sm text-gray-600">
                 Already have an account?{' '}
-                <a href="/" className="text-blue-500 hover:underline">
+                <Link to="/" className="text-blue-500 hover:underline">
                     Log In
-                </a>
+                </Link>
             </p>
         </div>
     );

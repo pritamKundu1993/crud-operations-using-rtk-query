@@ -1,5 +1,5 @@
 // src/layout/DashboardLayout.tsx
-import Navbar from '@/components/Navbar';
+import { Footer, Navbar } from '@/components';
 import { Outlet } from 'react-router';
 
 export default function DashboardLayout() {
@@ -9,6 +9,9 @@ export default function DashboardLayout() {
             <main className="p-4">
                 <Outlet />
             </main>
+            <footer className="bg-gray-800 text-white py-4">
+                <Footer />
+            </footer>
         </div>
     );
 }

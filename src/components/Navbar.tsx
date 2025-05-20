@@ -79,7 +79,9 @@ export default function Navbar() {
                 {/* AlertDialog for Logout Confirmation */}
                 <AlertDialog>
                     <AlertDialogTrigger asChild>
-                        <Button className="bg-red-500 hover:bg-red-600 text-white">Logout</Button>
+                        <Button className="bg-red-500 hover:bg-red-600 text-white cursor-pointer">
+                            Logout
+                        </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>

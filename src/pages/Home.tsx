@@ -23,21 +23,40 @@ import {
 import { useNavigate } from 'react-router';
 import { toast } from 'react-hot-toast';
 import { Food } from '@/types';
-
 import SkeletonCard from '@/components/SkeletonCard';
 import { useDeleteFoodMutation, useGetAllFoodsQuery } from '@/features/foods/foodsApi';
+import 'nprogress/nprogress.css';
+import NProgress from 'nprogress';
 
 const ITEMS_PER_PAGE = 3;
 
 export default function Home() {
-    const { data = [], isLoading } = useGetAllFoodsQuery({});
-    const [deleteFood] = useDeleteFoodMutation();
-    const [searchTerm, setSearchTerm] = useState('');
+    const navigate = useNavigate();
     const [minPrice, setMinPrice] = useState('');
     const [maxPrice, setMaxPrice] = useState('');
+    const [deleteFood] = useDeleteFoodMutation();
+    const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const { data = [], isLoading } = useGetAllFoodsQuery({});
     const [foodToDelete, setFoodToDelete] = useState<Food | null>(null);
-    const navigate = useNavigate();
+
+    // NProgress config
+    useEffect(() => {
+        NProgress.configure({ showSpinner: false });
+    }, []);
+
+    // Start/stop NProgress for loading state
+    useEffect(() => {
+        if (isLoading) {
+            NProgress.start();
+        } else {
+            NProgress.done();
+        }
+
+        return () => {
+            NProgress.done();
+        };
+    }, [isLoading]);
 
     // Memoize filtered foods
     const filteredFoods = useMemo(() => {
@@ -45,7 +64,7 @@ export default function Home() {
 
         if (searchTerm) {
             filtered = filtered.filter((item: Food) =>
-                item.food_name.trim().toLowerCase().includes(searchTerm.toLowerCase())
+                item.food_name.toLowerCase().includes(searchTerm.toLowerCase().trim())
             );
         }
 
@@ -60,21 +79,22 @@ export default function Home() {
         return filtered;
     }, [data, searchTerm, minPrice, maxPrice]);
 
-    // Calculate total pages
     const totalPages = Math.ceil(filteredFoods.length / ITEMS_PER_PAGE);
 
-    // Reset currentPage if it exceeds totalPages
     useEffect(() => {
         if (currentPage > totalPages && totalPages > 0) {
             setCurrentPage(totalPages);
         } else if (filteredFoods.length > 0 && currentPage === 0) {
             setCurrentPage(1);
         }
+
+        return () => {};
     }, [currentPage, totalPages, filteredFoods.length]);
 
-    // Reset page when filters change
     useEffect(() => {
         setCurrentPage(1);
+
+        return () => {};
     }, [searchTerm, minPrice, maxPrice]);
 
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -89,19 +109,21 @@ export default function Home() {
     };
 
     const handleEdit = (food: Food) => {
+        NProgress.start();
         navigate(`/dashboard/food/${food._id}`);
     };
 
     const handleDelete = async () => {
         if (!foodToDelete) return;
 
+        NProgress.start();
         try {
             const response = await deleteFood(foodToDelete._id).unwrap();
             toast.success(response.message);
-            // Ensure no redirection occurs here
         } catch {
             toast.error('Failed to delete food');
         } finally {
+            NProgress.done();
             setFoodToDelete(null);
         }
     };
@@ -111,7 +133,13 @@ export default function Home() {
     };
 
     if (isLoading) {
-        return Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => <SkeletonCard key={i} />);
+        return (
+            <>
+                {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => (
+                    <SkeletonCard key={i} />
+                ))}
+            </>
+        );
     }
 
     return (
@@ -171,11 +199,14 @@ export default function Home() {
                                     <p className="text-lg font-bold mb-4">₹{food.food_price}</p>
                                 </div>
                                 <div className="flex gap-2 mt-auto">
-                                    <Button className="w-1/2" onClick={() => handleEdit(food)}>
+                                    <Button
+                                        className="w-1/2 cursor-pointer"
+                                        onClick={() => handleEdit(food)}
+                                    >
                                         Edit
                                     </Button>
                                     <Button
-                                        className="w-1/2"
+                                        className="w-1/2 cursor-pointer"
                                         variant="destructive"
                                         onClick={() => openDeleteDialog(food)}
                                     >
@@ -190,7 +221,7 @@ export default function Home() {
                 )}
             </div>
 
-            {/* Alert Dialog for Delete Confirmation */}
+            {/* Alert Dialog */}
             <AlertDialog open={!!foodToDelete} onOpenChange={() => setFoodToDelete(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
